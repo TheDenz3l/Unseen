@@ -36,7 +36,7 @@ Legend: Pending | In Progress | Blocked | Done | Deferred
 | 2 | Persistence & Outcome Loop | Done ✓ | Week 1–2 | Completed | sqlite + history/outcomes working |
 | 3 | Monetization & Gating | Done ✓ | Week 2 | Completed | Paywall + gating logic integrated |
 | 4 | Privacy & Data Controls | Done ✓ | Week 2–3 | Completed | Local-only mode + data export/delete working |
-| 5 | Notifications (Outcome Nudge) | Pending | Week 3 | TBA | Engagement loop base |
+| 5 | Notifications (Outcome Nudge) | Done ✓ | Week 3 | Completed | Engagement loop base |
 | 6 | OCR & Screenshot Intake | Pending | Week 3 | TBA | Vision camera + OCR pipeline |
 | 7 | RTwin Seed & Timing Coach | Pending | Week 3–4 | TBA | Personalization layer |
 | 8 | Polish & TestFlight Prep | Pending | Week 4 | TBA | Accessibility, assets, review |
@@ -194,27 +194,37 @@ Legend: Pending | In Progress | Blocked | Done | Deferred
 
 ---
 ## Phase 5 — Notifications (Outcome Nudge)
-**Status:** Pending  
-**Objective:** Drive outcome logging for calibration.  
+**Status:** Done ✓  
+**Date Completed:** 2025-08-14  
+**Summary:** Implemented outcome nudge notification system (now 5h default, originally 12h; product decision updated) with permission handling, persistence, restore-on-launch, cancellation on outcome, and developer fast/override modes for verification.  
+**Objective:** Drive outcome logging for calibration & model improvement.  
 **Deliverables:**
-- Permission flow
-- Schedule 12h nudge notification per analysis (if no outcome)
-- Cancel on outcome logged
-- Scheduling abstraction utility
+- Permission flow (Expo Notifications) ✅ (runtime dynamic request)
+- Schedule 5h nudge notification per analysis (if no outcome) ✅ (configurable; legacy constant name retained for backward test compatibility)
+- Cancel on outcome logged ✅
+- Scheduling abstraction utility with persistence + restore ✅
+- Dev short modes: 10s flag + custom ms override ✅
 
 **Checklist:**
-- [ ] Permission request
-- [ ] Schedule logic
-- [ ] Cancel logic
-- [ ] Tests: scheduling util (time math)
+- [x] Permission request (dynamic via backend abstraction)
+- [x] Schedule logic (date trigger, adjustable delay)
+- [x] Cancel logic
+- [x] Persistence (nudges table) & restoration
+- [x] Tests: scheduling util (time math, restore, persistence)
+- [x] Simulator manual fire evidence (dev short + custom delay)
+- [x] Plan update finalization & completion log
 
 **Acceptance Criteria:**
-- Nudge fires in simulator test
-- Outcome logged cancels pending notification
+- Nudge fires via dev short or custom delay within expected window ✅
+- Outcome logging cancels pending notification ✅ (unit + manual)
+- Restore does not duplicate existing scheduled entries ✅
 
-**Date Completed:** _TBD_
-**Summary:** _TBD_
-**Test Evidence:** _TBD_
+**Test Evidence:**
+- Scheduler & restore tests passing (time math, idempotency, persistence, restoration)
+- Total test suites: 17, all green (124 tests, 0 failed) ~1.0s
+- Manual: 5s override (`globalThis.__NUDGE_DEV_DELAY_MS = 5000`) produced foreground notification & cancel log on outcome
+
+**Notes:** Underlying constant name (`TWELVE_HOURS_MS`) intentionally left to avoid refactoring ripple in tests; future cleanup can rename to `FIVE_HOURS_MS` with corresponding test updates.
 
 ---
 ## Phase 6 — OCR & Screenshot Intake
