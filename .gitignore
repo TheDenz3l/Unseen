@@ -1,0 +1,12 @@
+node_modules/
+.DS_Store
+*.log
+.expo/
+dist/
+.env.local
+.env.*.local
+*.tsbuildinfo
+.nyc_output
+coverage/
+.tmp/
+build/
