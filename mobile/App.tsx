@@ -11,6 +11,7 @@ import AnalyzeScreen from './screens/AnalyzeScreen';
 import ResultScreen from './screens/ResultScreen';
 import HistoryScreen from './screens/HistoryScreen';
 import PaywallScreen from './screens/PaywallScreen';
+import SettingsScreen from './screens/SettingsScreen';
 
 // Create stack navigator
 const Stack = createStackNavigator();
@@ -55,6 +56,11 @@ export default function App() {
               name="Paywall" 
               component={PaywallScreen} 
               options={{ title: 'Upgrade to Pro' }} 
+            />
+            <Stack.Screen 
+              name="Settings" 
+              component={SettingsScreen} 
+              options={{ title: 'Settings' }} 
             />
           </Stack.Navigator>
         </NavigationContainer>

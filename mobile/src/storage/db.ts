@@ -1,7 +1,7 @@
 import * as SQLite from 'expo-sqlite';
 
 const DB_NAME = 'inboxunseen.db';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 class Database {
   private db: SQLite.SQLiteDatabase | null = null;
@@ -47,7 +47,7 @@ class Database {
   private async applyMigrations(fromVersion: number): Promise<void> {
     if (!this.db) throw new Error('Database not initialized');
 
-    if (fromVersion < 1) {
+  if (fromVersion < 1) {
       // Initial schema from PRD
       await this.db.execAsync(`
         -- Contacts are anonymized via a stable hash
@@ -95,10 +95,18 @@ class Database {
         );
       `);
 
-      await this.db.runAsync(
-        'INSERT INTO schema_migrations (version) VALUES (?)', 
-        [1]
-      );
+      await this.db.runAsync('INSERT INTO schema_migrations (version) VALUES (?)', [1]);
+    }
+    if (fromVersion < 2) {
+      // Phase 5: Notifications nudge scheduling table
+      await this.db.execAsync(`
+        CREATE TABLE nudges (
+          analysis_id TEXT PRIMARY KEY REFERENCES analyses(id),
+          notification_id TEXT,
+          fire_time INTEGER
+        );
+      `);
+      await this.db.runAsync('INSERT INTO schema_migrations (version) VALUES (?)', [2]);
     }
   }
 
@@ -126,8 +134,10 @@ class Database {
     recommendation: string;
     reasons: string[];
     suggestions: string[];
+    createdAt?: number;
   }): Promise<void> {
     const db = await this.getDatabase();
+    const createdAt = analysis.createdAt || Date.now();
     await db.runAsync(`
       INSERT INTO analyses (id, thread_id, features_hash, prob, bucket, recommendation, reasons, suggestions, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -140,7 +150,7 @@ class Database {
       analysis.recommendation,
       JSON.stringify(analysis.reasons),
       JSON.stringify(analysis.suggestions),
-      Date.now()
+      createdAt
     ]);
   }
 
@@ -193,6 +203,39 @@ class Database {
     ]);
   }
 
+  // Nudge scheduling persistence
+  async createNudge(analysisId: string, notificationId: string, fireTime: number): Promise<void> {
+    const db = await this.getDatabase();
+    await db.runAsync(`
+      INSERT OR REPLACE INTO nudges (analysis_id, notification_id, fire_time)
+      VALUES (?, ?, ?)
+    `, [analysisId, notificationId, fireTime]);
+  }
+
+  async deleteNudge(analysisId: string): Promise<void> {
+    const db = await this.getDatabase();
+    await db.runAsync('DELETE FROM nudges WHERE analysis_id = ?', [analysisId]);
+  }
+
+  async getActiveNudges(): Promise<Array<{ analysis_id: string; notification_id: string; fire_time: number }>> {
+    const db = await this.getDatabase();
+    const rows = await db.getAllAsync('SELECT * FROM nudges');
+    return rows as any;
+  }
+
+  async getAnalysesNeedingNudges(now: number, twelveHoursMs: number): Promise<Array<{ id: string; created_at: number }>> {
+    const db = await this.getDatabase();
+    const rows = await db.getAllAsync(`
+      SELECT a.id, a.created_at FROM analyses a
+        LEFT JOIN outcomes o ON o.analysis_id = a.id
+        LEFT JOIN nudges n ON n.analysis_id = a.id
+      WHERE o.analysis_id IS NULL
+        AND n.analysis_id IS NULL
+        AND (a.created_at + ?) > ?
+    `, [twelveHoursMs, now]);
+    return rows as any;
+  }
+
   // Contact operations
   async getOrCreateContact(contactHash: string, displayHint?: string): Promise<string> {
     const db = await this.getDatabase();
@@ -232,6 +275,7 @@ class Database {
       DELETE FROM contact_stats;
       DELETE FROM threads;
       DELETE FROM contacts;
+  DELETE FROM nudges;
     `);
   }
 

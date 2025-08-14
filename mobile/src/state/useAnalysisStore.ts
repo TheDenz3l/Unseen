@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { extractFeatures, runAnalysis, generateFeaturesHash, type Conversation, type AnalysisResult } from '../analysis/index';
 import { database } from '../storage/db';
+import { scheduleOutcomeNudge, cancelOutcomeNudge, restorePendingNudges } from '../notifications/scheduler';
 import { useMonetizationStore } from './useMonetizationStore';
 import { canPerformAnalysis, applyFreeLimitations } from '../monetization/gating';
 import { trackAnalysisGated } from '../analytics/events';
@@ -114,6 +115,13 @@ export const useAnalysisStore = create<AnalysisState>((set, get) => ({
         reasons: result.reasons,
         suggestions: [], // Will be populated with actual suggestions later
       });
+
+      // Schedule outcome nudge (12h) if user has not yet logged outcome
+      try {
+        await scheduleOutcomeNudge(analysisId, Date.now());
+      } catch (e) {
+        console.warn('[Notifications] Failed to schedule nudge', e);
+      }
       
       set({
         currentConversation: conversation,
@@ -143,6 +151,11 @@ export const useAnalysisStore = create<AnalysisState>((set, get) => ({
 
   loadRecentAnalyses: async () => {
     try {
+      // One-time restore (simple guard using window global flag)
+      if (!(global as any).__nudges_restored) {
+        (global as any).__nudges_restored = true;
+        restorePendingNudges();
+      }
       const analyses = await database.getRecentAnalyses(20);
       set({ recentAnalyses: analyses });
     } catch (error) {
@@ -162,7 +175,9 @@ export const useAnalysisStore = create<AnalysisState>((set, get) => ({
 
   logOutcome: async (analysisId: string, gotReply: boolean, latencyMinutes?: number) => {
     try {
-      await database.logOutcome(analysisId, gotReply, latencyMinutes);
+  await database.logOutcome(analysisId, gotReply, latencyMinutes);
+  // Cancel pending nudge (if any)
+  cancelOutcomeNudge(analysisId);
       
       // Update the analysis in our recent list
       const { recentAnalyses } = get();

@@ -51,6 +51,13 @@ export default function HomeScreen() {
         >
           <Text style={styles.secondaryButtonText}>✨ Upgrade to Pro</Text>
         </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={[styles.button, styles.secondaryButton]}
+          onPress={() => navigation.navigate('Settings' as never)}
+        >
+          <Text style={styles.secondaryButtonText}>⚙️ Settings</Text>
+        </TouchableOpacity>
       </View>
 
       <TouchableOpacity

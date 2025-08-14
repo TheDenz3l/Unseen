@@ -22,6 +22,7 @@ class MockDatabase {
   private analyses: MockAnalysis[] = [];
   private outcomes: Map<string, MockOutcome> = new Map();
   private contacts: Map<string, { id: string; displayHint?: string; createdAt: number }> = new Map();
+  private nudges: Map<string, { analysisId: string; notificationId: string; fireTime: number }> = new Map();
 
   async init(): Promise<void> {
     // Mock initialization - always succeeds
@@ -40,10 +41,11 @@ class MockDatabase {
     recommendation: string;
     reasons: string[];
     suggestions: string[];
+    createdAt?: number;
   }): Promise<void> {
     this.analyses.push({
       ...analysis,
-      createdAt: Date.now(),
+      createdAt: analysis.createdAt ?? Date.now(),
     });
   }
 
@@ -104,10 +106,33 @@ class MockDatabase {
     // Mock thread creation
   }
 
+  async createNudge(analysisId: string, notificationId: string, fireTime: number): Promise<void> {
+    this.nudges.set(analysisId, { analysisId, notificationId, fireTime });
+  }
+
+  async deleteNudge(analysisId: string): Promise<void> {
+    this.nudges.delete(analysisId);
+  }
+
+  async getActiveNudges(): Promise<Array<{ analysis_id: string; notification_id: string; fire_time: number }>> {
+    return Array.from(this.nudges.values()).map(n => ({
+      analysis_id: n.analysisId,
+      notification_id: n.notificationId,
+      fire_time: n.fireTime,
+    }));
+  }
+
+  async getAnalysesNeedingNudges(now: number, twelveHoursMs: number): Promise<Array<{ id: string; created_at: number }>> {
+    return this.analyses
+      .filter(a => !this.outcomes.has(a.id) && !this.nudges.has(a.id) && (a.createdAt + twelveHoursMs) > now)
+      .map(a => ({ id: a.id, created_at: a.createdAt }));
+  }
+
   async deleteAllData(): Promise<void> {
     this.analyses = [];
     this.outcomes.clear();
     this.contacts.clear();
+  this.nudges.clear();
   }
 
   async deleteContact(contactId: string): Promise<void> {
