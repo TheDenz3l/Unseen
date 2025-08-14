@@ -1,77 +1,47 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { semanticColors, ghostMeterColors } from '../src/theme/colors';
 import { useAnalysisStore } from '../src/state/useAnalysisStore';
-import { useMonetizationStore } from '../src/state/useMonetizationStore';
-import { trackPaywallView } from '../src/analytics/events';
-import { FREE_ANALYSES_PER_DAY } from '../src/monetization/constants';
 
 export default function ResultScreen() {
-  const router = useRouter();
-  const params = useLocalSearchParams();
+  const navigation = useNavigation();
+  const route = useRoute() as any;
   const { currentResult, clearCurrentAnalysis, logOutcome, loadAnalysisById } = useAnalysisStore();
-  const { entitlement, usageToday } = useMonetizationStore();
   const [outcomeLogged, setOutcomeLogged] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [analysisData, setAnalysisData] = useState(null);
-  
-  const isPro = entitlement === 'pro';
-  
-  // Load analysis from history if analysisId is provided
+  const [loadedFromId, setLoadedFromId] = useState<any>(null);
+
   useEffect(() => {
-    console.log('🔍 Result: Received params:', params);
-    console.log('🔍 Result: analysisId:', params.analysisId, 'fromHistory:', params.fromHistory);
-    
-    if (params.analysisId && params.fromHistory === 'true') {
-      console.log('🔍 Result: Loading analysis from history...');
-      loadHistoryAnalysis();
-    }
-  }, [params.analysisId, params.fromHistory]);
-
-  const loadHistoryAnalysis = async () => {
-    if (!params.analysisId) return;
-    
-    console.log('🔍 Result: Starting to load analysis:', params.analysisId);
-    setLoading(true);
-    try {
-      const analysis = await loadAnalysisById(params.analysisId as string);
-      console.log('🔍 Result: Loaded analysis:', analysis);
-      if (analysis) {
-        setAnalysisData(analysis);
-        setOutcomeLogged(analysis.outcome !== undefined);
-        console.log('🔍 Result: Analysis data set successfully');
-      } else {
-        console.log('🔍 Result: No analysis found with ID:', params.analysisId);
+    const loadByIdIfNeeded = async () => {
+      if (route?.params?.analysisId) {
+        console.log('ResultScreen: received analysisId param', route.params.analysisId);
+        const analysis = await loadAnalysisById(route.params.analysisId);
+        if (analysis) {
+          setLoadedFromId({
+            id: analysis.id,
+            prob: analysis.prob,
+            bucket: analysis.bucket,
+            recommendation: analysis.recommendation?.includes(';') ? analysis.recommendation.split(';')[0] : analysis.recommendation,
+            waitMinutes: (() => { const parts = analysis.recommendation?.split(';'); if (parts && parts[1]) { const n = parseInt(parts[1]); return isNaN(n) ? undefined : n; } return undefined; })(),
+            reasons: analysis.reasons || [],
+            suggestions: analysis.suggestions || [],
+          });
+        }
       }
-    } catch (error) {
-      console.error('🔍 Result: Error loading analysis:', error);
-      Alert.alert('Error', 'Failed to load analysis');
-    }
-    setLoading(false);
-  };
+    };
+    loadByIdIfNeeded();
+  }, [route?.params?.analysisId]);
 
-  // Use either the current result or loaded history data
-  const displayData = analysisData || currentResult;
-  
-  if (loading) {
-    return (
-      <View style={[styles.container, styles.centeredContainer]}>
-        <ActivityIndicator size="large" color={semanticColors.primary} />
-        <Text style={styles.loadingText}>Loading analysis...</Text>
-      </View>
-    );
-  }
-  
+  const effectiveResult = currentResult || loadedFromId;
   // If no current analysis, show error or redirect
-  if (!displayData) {
+  if (!effectiveResult) {
     return (
       <View style={styles.container}>
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>No analysis found</Text>
           <TouchableOpacity 
             style={styles.primaryButton} 
-            onPress={() => router.push('/analyze')}
+            onPress={() => (navigation as any).navigate('Analyze')}
           >
             <Text style={styles.primaryButtonText}>Analyze a Conversation</Text>
           </TouchableOpacity>
@@ -79,17 +49,16 @@ export default function ResultScreen() {
       </View>
     );
   }
-  
-  const { prob, bucket, recommendation, waitMinutes, reasons, suggestions = [], id } = currentResult;
+  const { prob, bucket, recommendation, waitMinutes, reasons, suggestions = [], id } = effectiveResult;
 
   const handleGoHome = () => {
     clearCurrentAnalysis();
-    router.push('/');
+    (navigation as any).navigate('Home');
   };
 
   const handleAnalyzeAnother = () => {
     clearCurrentAnalysis();
-    router.push('/analyze');
+    (navigation as any).navigate('Analyze');
   };
 
   const handleLogOutcome = async (gotReply: boolean) => {
@@ -163,20 +132,7 @@ export default function ResultScreen() {
 
         {/* Reasons */}
         <View style={styles.reasonsSection}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.reasonsTitle}>Why?</Text>
-            {!isPro && reasons.length === 1 && (
-              <TouchableOpacity 
-                style={styles.proPrompt}
-                onPress={() => {
-                  trackPaywallView('result_truncated');
-                  router.push('/paywall');
-                }}
-              >
-                <Text style={styles.proPromptText}>+{2} more • Unlock Pro</Text>
-              </TouchableOpacity>
-            )}
-          </View>
+          <Text style={styles.reasonsTitle}>Why?</Text>
           {reasons.map((reason: string, index: number) => (
             <View key={index} style={styles.reasonItem}>
               <Text style={styles.reasonBullet}>•</Text>
@@ -188,20 +144,7 @@ export default function ResultScreen() {
         {/* Suggestions */}
         {suggestions && suggestions.length > 0 && (
           <View style={styles.suggestionsSection}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.suggestionsTitle}>Alternative Messages</Text>
-              {!isPro && suggestions.length === 1 && (
-                <TouchableOpacity 
-                  style={styles.proPrompt}
-                  onPress={() => {
-                    trackPaywallView('result_truncated');
-                    router.push('/paywall');
-                  }}
-                >
-                  <Text style={styles.proPromptText}>+{2} more • Pro</Text>
-                </TouchableOpacity>
-              )}
-            </View>
+            <Text style={styles.suggestionsTitle}>Alternative Messages</Text>
             {suggestions.map((suggestion: any, index: number) => (
               <TouchableOpacity key={index} style={styles.suggestionItem}>
                 <Text style={styles.suggestionTone}>{suggestion.tone || 'Suggestion'}</Text>
@@ -211,47 +154,7 @@ export default function ResultScreen() {
           </View>
         )}
 
-        {/* Usage Status for Free Users */}
-        {!isPro && (
-          <View style={styles.usageSection}>
-            <Text style={styles.usageText}>
-              Free usage today: {usageToday}/{FREE_ANALYSES_PER_DAY}
-            </Text>
-            {usageToday >= FREE_ANALYSES_PER_DAY - 1 && (
-              <TouchableOpacity 
-                style={styles.upgradeButton}
-                onPress={() => {
-                  trackPaywallView('limit_reached');
-                  router.push('/paywall');
-                }}
-              >
-                <Text style={styles.upgradeButtonText}>Upgrade for Unlimited</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
-
         {/* Outcome Logging */}
-        {!outcomeLogged && (
-          <View style={styles.outcomeSection}>
-            <Text style={styles.outcomeSectionTitle}>Did you get a reply?</Text>
-            <Text style={styles.outcomeSectionSubtitle}>Help us improve predictions</Text>
-            <View style={styles.outcomeButtons}>
-              <TouchableOpacity 
-                style={[styles.outcomeButton, styles.replyButton]}
-                onPress={() => handleLogOutcome(true)}
-              >
-                <Text style={styles.outcomeButtonText}>✅ Got Reply</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.outcomeButton, styles.noReplyButton]}
-                onPress={() => handleLogOutcome(false)}
-              >
-                <Text style={styles.outcomeButtonText}>❌ No Reply</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}        {/* Outcome Logging */}
         {!outcomeLogged && (
           <View style={styles.outcomeSection}>
             <Text style={styles.outcomeSectionTitle}>Did you get a reply?</Text>
@@ -510,48 +413,6 @@ const styles = StyleSheet.create({
   outcomeButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: semanticColors.text,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  proPrompt: {
-    backgroundColor: semanticColors.accent + '20',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  proPromptText: {
-    fontSize: 12,
-    color: semanticColors.accent,
-    fontWeight: '600',
-  },
-  usageSection: {
-    backgroundColor: semanticColors.surface,
-    borderWidth: 1,
-    borderColor: semanticColors.border,
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 24,
-    alignItems: 'center',
-  },
-  usageText: {
-    fontSize: 16,
-    color: semanticColors.textMuted,
-    marginBottom: 12,
-  },
-  upgradeButton: {
-    backgroundColor: semanticColors.accent,
-    borderRadius: 12,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-  },
-  upgradeButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: semanticColors.text,
+    color: '#333333',
   },
 });

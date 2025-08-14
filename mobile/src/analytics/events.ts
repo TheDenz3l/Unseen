@@ -1,19 +1,28 @@
 /**
  * Analytics events for monetization tracking
  * Phase 3 - fire-and-forget implementation with console logging
+ * Phase 4 - Added privacy guard for local-only mode
  * Can be extended later to route to real analytics services
  */
 
 import { ANALYTICS_EVENTS } from '../monetization/constants';
+import { usePrivacyStore } from '../state/usePrivacyStore';
 
 interface EventData {
   [key: string]: any;
 }
 
 /**
- * Base event tracking function
+ * Base event tracking function with privacy guard
  */
 function trackEvent(eventName: string, data?: EventData): void {
+  // Check privacy mode - suppress analytics in local-only mode
+  const privacyState = usePrivacyStore.getState();
+  if (privacyState.localOnly) {
+    privacyState._incrementSuppressed();
+    return; // Silently suppress
+  }
+
   // For now, just log to console
   // In production, this would route to analytics service (Amplitude, Mixpanel, etc.)
   console.log(`[Analytics] ${eventName}`, data ? JSON.stringify(data, null, 2) : '');

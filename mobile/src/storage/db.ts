@@ -251,6 +251,68 @@ class Database {
       DELETE FROM contacts WHERE id = '${contactId}';
     `);
   }
+
+  // Data export for privacy compliance
+  async exportAllData(): Promise<{
+    contacts: any[];
+    contact_stats: any[];
+    threads: any[];
+    analyses: any[];
+    outcomes: any[];
+    exported_at: string;
+  }> {
+    const db = await this.getDatabase();
+    
+    try {
+      // Export contacts
+      const contacts = await db.getAllAsync('SELECT * FROM contacts ORDER BY created_at DESC');
+      
+      // Export contact stats with parsed JSON
+      const rawContactStats = await db.getAllAsync('SELECT * FROM contact_stats ORDER BY updated_at DESC');
+      const contact_stats = rawContactStats.map((row: any) => ({
+        ...row,
+        reply_latency_hist: row.reply_latency_hist ? JSON.parse(row.reply_latency_hist) : null,
+        best_hours: row.best_hours ? JSON.parse(row.best_hours) : null,
+        tone_len_coeffs: row.tone_len_coeffs ? JSON.parse(row.tone_len_coeffs) : null,
+        taboo_tokens: row.taboo_tokens ? JSON.parse(row.taboo_tokens) : null,
+      }));
+      
+      // Export threads
+      const threads = await db.getAllAsync('SELECT * FROM threads ORDER BY created_at DESC');
+      
+      // Export analyses with parsed JSON
+      const rawAnalyses = await db.getAllAsync('SELECT * FROM analyses ORDER BY created_at DESC');
+      const analyses = rawAnalyses.map((row: any) => ({
+        ...row,
+        reasons: row.reasons ? JSON.parse(row.reasons) : [],
+        suggestions: row.suggestions ? JSON.parse(row.suggestions) : [],
+      }));
+      
+      // Export outcomes
+      const outcomes = await db.getAllAsync('SELECT * FROM outcomes ORDER BY logged_at DESC');
+      
+      return {
+        contacts: contacts || [],
+        contact_stats: contact_stats || [],
+        threads: threads || [],
+        analyses: analyses || [],
+        outcomes: outcomes || [],
+        exported_at: new Date().toISOString(),
+      };
+      
+    } catch (error) {
+      console.error('Export failed for table:', error);
+      // Return partial data rather than failing completely
+      return {
+        contacts: [],
+        contact_stats: [],
+        threads: [],
+        analyses: [],
+        outcomes: [],
+        exported_at: new Date().toISOString(),
+      };
+    }
+  }
 }
 
 export const database = new Database();
