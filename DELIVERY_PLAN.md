@@ -121,44 +121,31 @@ Legend: Pending | In Progress | Blocked | Done | Deferred
 **Test Evidence:** All 32 tests passing in 0.591s. Database initialization, analysis creation, outcome logging, and data deletion all working correctly. History screen loads live data with <200ms performance.
 
 ---
-## Phase 3 — Monetization & Gating
-**Status:** Done ✓  
-**Date Completed:** 2025-08-14  
-**Summary:** Complete monetization system with usage gating, paywall integration, and content truncation. Free users limited to 5 analyses/day with single reason/suggestion. Pro users get unlimited access with full content.  
-**Test Evidence:** All 59 tests passing in 2.071s. Gating logic, content truncation, purchase flow, and daily usage reset all working correctly.
+## Phase 3: Monetization & Revenue Model ✅
+**Timeline:** Week 9-12
+**Status:** Completed ✅ (v0.3.0)
 
-**Objective:** Functional paywall + entitlement gating.  
-**Deliverables:**
-- RevenueCat integration foundation (placeholder implementation)
-- Entitlement state in Zustand store
-- Free tier limits: 5 analyses/day cap & 1 reason/suggestion visible
-- Paywall entry logic (pre-result gating if limit exceeded)
-- Purchase & restore flows
-- Analytics events: paywall_view, subscribe_*, restore_*, analysis_gated
+### Objectives
+- Implement subscription model with free tier ✅
+- Add usage limits and premium features ✅
+- Integrate payment processing ✅ (placeholder)
+- Create upgrade prompts and paywall ✅
 
-**Checklist:**
-- [x] RevenueCat SDK setup & placeholder implementation
-- [x] Entitlement fetch + caching in store
-- [x] Gating logic middleware (pure functions + store integration)
-- [x] Paywall improvements (loading states, errors, restore button)
-- [x] Event instrumentation (console-based analytics)
-- [x] Tests: gating util functions + integration scenarios
-- [x] Content truncation in result screen
-- [x] Usage tracking with daily reset
-- [x] Error handling for purchase/restore failures
-- [x] Pro upgrade prompts in UI
+### Key Features
+- [x] RevenueCat SDK integration (placeholder for testing)
+- [x] Subscription tiers (Free, Pro)
+- [x] Usage limiting (5 analyses/day for free)
+- [x] Payment processing (placeholder flows)
+- [x] Paywall screens with purchase/restore flows
+- [x] Analytics for conversion tracking
 
-**Acceptance Criteria:**
-- ✅ Free user blocked after 5 analyses with graceful dialog until midnight local
-- ✅ Pro user sees all reasons & suggestions (unlimited)
-- ✅ Purchase & restore succeed in placeholder implementation (ready for real RevenueCat)
-- ✅ Content properly truncated for free users (1 reason, 1 suggestion)
-- ✅ Analytics events tracked for paywall interactions
-- ✅ Daily usage reset at midnight local time
-
-**Date Completed:** 2025-08-14  
-**Summary:** Complete monetization system with usage gating, paywall integration, and content truncation. Free users limited to 5 analyses/day with single reason/suggestion. Pro users get unlimited access with full content.  
-**Test Evidence:** All 59 tests passing in 2.071s. Gating logic, content truncation, purchase flow, and daily usage reset all working correctly.
+### Implementation Highlights
+- **Pure functional gating logic** for testability
+- **Zustand state management** for monetization
+- **Content truncation** for free users
+- **Daily usage reset** mechanism
+- **Comprehensive test suite** (59 tests passing)
+- **Analytics event tracking** for conversion funnel
 
 ---
 
