@@ -1,15 +1,16 @@
-# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+# Combined ignore from both branches
 
-# dependencies
+# Dependencies
 node_modules/
 
-# Expo
+# Expo / React Native build artifacts
 .expo/
 dist/
 web-build/
 expo-env.d.ts
+.metro-health-check*
 
-# Native
+# Native / signing
 .kotlin/
 *.orig.*
 *.jks
@@ -17,21 +18,27 @@ expo-env.d.ts
 *.p12
 *.key
 *.mobileprovision
+*.pem
 
-# Metro
-.metro-health-check*
-
-# debug
+# Logs & debug
+*.log
 npm-debug.*
 yarn-debug.*
 yarn-error.*
 
+# Coverage / build caches
+.nyc_output
+coverage/
+.tmp/
+build/
+
 # macOS
 .DS_Store
-*.pem
 
-# local env files
+# Environment files
+.env.local
+.env.*.local
 .env*.local
 
-# typescript
+# TypeScript incremental
 *.tsbuildinfo
